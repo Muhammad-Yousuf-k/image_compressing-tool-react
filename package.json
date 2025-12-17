@@ -5,12 +5,12 @@
   "type": "module",
 
   "homepage": "https://github.com/Muhammad-Yousuf-k/image_compressing-tool-react.git",
-  
+
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
+    "deploy": "gh-pages -d dist",
     "lint": "eslint .",
     "preview": "vite preview"
   },
