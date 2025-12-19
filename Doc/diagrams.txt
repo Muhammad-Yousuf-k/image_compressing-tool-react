@@ -1,0 +1,49 @@
+User Interface (React)
+┌───────────────────────────────┐
+│ DropZone / File Input          │
+│ - User selects or drops images│
+│ - User chooses custom format  │
+└─────────────┬─────────────────┘
+              │
+              ▼
+React State: filesList & cusExt
+- Stores files to upload and selected format
+              │
+              ▼
+HTTP POST /api/upload (Express Server)
+┌───────────────────────────────┐
+│ Multer Middleware              │
+│ - Handles file upload          │
+│ - Temporarily stores in /uploads│
+└─────────────┬─────────────────┘
+              │
+              ▼
+Worker Thread (worker.js)
+┌───────────────────────────────┐
+│ Sharp Library                 │
+│ - Saves original image        │
+│ - Compresses on original ext  │
+│ - Compresses to custom ext    │
+│ - Stores all in /processed    │
+└─────────────┬─────────────────┘
+              │
+              ▼
+Processed File Metadata Returned
+- Paths, sizes, extensions, download URLs
+              │
+              ▼
+React State: filesData updated
+- UI preview shows:
+  - Original image
+  - Before / after sizes
+  - Download buttons for:
+    • Original compressed
+    • Custom format compressed
+              │
+              ▼
+Download Endpoint GET /download
+┌───────────────────────────────┐
+│ Express Server                │
+│ - Validates file path         │
+│ - Sends file for download     │
+└───────────────────────────────┘

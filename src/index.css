@@ -1,1 +1,13 @@
+
+
 @import "tailwindcss";
+
+
+.truncate {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  /* limits to 3 lines */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

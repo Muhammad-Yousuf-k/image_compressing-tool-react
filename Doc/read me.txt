@@ -1,0 +1,235 @@
+# ImageCom – Image Compression App Documentation
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Tech Stack](#tech-stack)
+3. [Project Structure](#project-structure)
+4. [Frontend](#frontend)
+
+   * [App Component](#app-component)
+   * [Nav Component](#nav-component)
+   * [NotificationBar Component](#notificationbar-component)
+5. [Backend](#backend)
+
+   * [Server Setup](#server-setup)
+   * [Routes](#routes)
+   * [Worker Thread](#worker-thread)
+6. [File Flow & Lifecycle](#file-flow--lifecycle)
+7. [Environment Variables](#environment-variables)
+8. [Usage](#usage)
+9. [Future Improvements](#future-improvements)
+
+---
+
+## Overview
+
+**ImageCom** is a web application that allows users to compress and convert image files. Users can:
+
+* Upload multiple images at once
+* Preview uploaded images
+* Compress images in their original format
+* Convert images to custom formats: AVIF, JPEG, PNG, WEBP
+* Download the processed images
+* Automatically clean up temporary files
+
+The app leverages **React** for the frontend and **Node.js + Express** for the backend, using **worker threads** for efficient image processing.
+
+---
+
+## Tech Stack
+
+* **Frontend**: React, Tailwind CSS
+* **Backend**: Node.js, Express
+* **Image Processing**: Sharp
+* **File Uploads**: Multer
+* **Worker Threads**: Node.js `worker_threads`
+* **File Management**: fs, fs/promises
+
+---
+
+## Project Structure
+
+```
+project-root/
+├─ backend/
+│  ├─ server.js
+│  ├─ worker.js
+│  ├─ utils/
+│  │  └─ junkDelete.js
+├─ frontend/
+│  ├─ src/
+│  │  ├─ App.jsx
+│  │  ├─ components/
+│  │  │  ├─ nav.jsx
+│  │  │  └─ notificationBar.jsx
+│  │  └─ assets/
+│  │     └─ images/
+│  │        └─ 001-backG.webp
+├─ uploads/          # Temporary uploaded files
+├─ processed/        # Processed images
+├─ package.json
+└─ .env
+```
+
+---
+
+## Frontend
+
+### App Component
+
+* Manages **state**: `filesData`, `filesList`, `cusExt`, `uiStatus`
+* Handles **drag-and-drop** and **file input**
+* Sends images to backend `/api/upload`
+* Updates **preview panel** with processed images
+* Handles **notification messages** via `NotificationBar`
+
+Key state:
+
+```js
+const [uiStatus, setUiStatus] = useState({
+  loading: false,
+  error: null,
+  success: null,
+});
+```
+
+* `loading`: shows “Processing…” while images are being processed
+* `error`: shows error messages
+* `success`: shows success messages
+
+---
+
+### Nav Component
+
+* Responsive navigation bar
+* Displays app name
+* Can be extended for links (currently empty)
+
+---
+
+### NotificationBar Component
+
+* Displays status messages from `uiStatus`
+* Supports `loading`, `success`, and `error` states
+* Automatically hides messages after 3 seconds
+
+---
+
+## Backend
+
+### Server Setup (`server.js`)
+
+* Uses Express with JSON parsing and CORS
+* Multer handles file uploads (max size 5MB per image)
+* Worker threads handle **CPU-intensive image processing**
+* Provides `/deleteAllJunk` to clean temporary files
+* Provides `/download` endpoint with **file validation and security checks**
+
+---
+
+### Routes
+
+#### POST `/api/upload`
+
+* Accepts multiple images via `multipart/form-data`
+* Reads selected custom extension from `req.body.cusExt`
+* Sends file info to `worker.js`
+* Returns JSON with processed file metadata:
+
+```json
+{
+  "processedFiles": [
+    {
+      "originalFile": { "path": "...", "sizeKB": 120, "ext": "jpeg", "originalName": "image.jpg" },
+      "customExtCompressFile": { "path": "...", "sizeKB": 80, "ext": "webp", "url": "/download?file=..." },
+      "originalExtCompressFile": { "path": "...", "sizeKB": 100, "ext": "jpeg", "url": "/download?file=..." }
+    }
+  ]
+}
+```
+
+#### GET `/deleteAllJunk`
+
+* Deletes all files in `uploads` and `processed` folders
+
+#### GET `/download?file=<filepath>`
+
+* Downloads processed image
+* Security checks:
+
+  * Must exist in `/processed`
+  * Path traversal prevention
+
+---
+
+### Worker Thread (`worker.js`)
+
+* Uses `sharp` for image compression
+* Supports original format compression and conversion to custom formats (AVIF, JPEG, PNG, WEBP)
+* Returns:
+
+  * Original file (uncompressed)
+  * Original format compressed file
+  * Custom format compressed file
+
+---
+
+## File Flow & Lifecycle
+
+1. **User uploads images** → stored in `/uploads` temporarily
+2. **Worker processes images** → stores outputs in `/processed`
+3. **UI displays previews** with download links
+4. **User downloads images** → optionally auto-delete after download
+5. **Junk cleanup** → `/deleteAllJunk` clears both folders
+
+---
+
+## Environment Variables
+
+* `.env` can include:
+
+```
+PORT=3000
+```
+
+---
+
+## Usage
+
+1. Clone repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start backend:
+
+```bash
+node server.js
+```
+
+4. Start frontend (React):
+
+```bash
+npm start
+```
+
+5. Open browser → upload images, select format, compress, download
+
+---
+
+## Future Improvements
+
+* Add **progress bar** for large file uploads
+* Allow **bulk download as zip**
+* Add **image rotation/crop features**
+* Improve **UI responsiveness** for mobile screens
+* Add **unit tests** for backend processing
+
+---
+
+I can also create a **Markdown version with flowcharts and diagrams embedded** for your README if you want this documentation **ready for GitHub**.
+
+Do you want me to create that GitHub-ready Markdown version?
