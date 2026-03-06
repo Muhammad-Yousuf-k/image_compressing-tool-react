@@ -2,9 +2,8 @@ import express from "express";
 import multer from "multer";
 import { uploadLimiter, deleteLimiter } from "../utils/rateLimiters.js";
 import { compressController, downloadController, deleteController } from "../controllers/imagesControllers.js";
+
 const router = express.Router();
-
-
 
 const upload = multer({
     dest: "uploads/",

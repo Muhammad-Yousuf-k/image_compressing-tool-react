@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import imageRouter from "./routes/imagesRoutes.js";
 import { globalLimiter } from "./utils/rateLimiters.js";
+
 const app = express();
 
 // Middlewares
@@ -16,7 +17,7 @@ app.get("/", (req, res) => {
     res.send("Server is running 🚀");
 });
 
-// route
+// Routes
 app.use("/images", imageRouter);
 
 // Global error handler
@@ -38,6 +39,6 @@ app.use((err, req, res, next) => {
     });
 });
 
-//Start server
-const PORT = 3000;
+// Start server — port from env with fallback
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

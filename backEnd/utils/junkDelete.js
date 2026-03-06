@@ -1,42 +1,28 @@
-import fs from "fs";
+import fsp from "fs/promises";
 import path from "path";
 
-
-
 /**
- * Delete a single file safely
- * @param {string} filePath - Full path to the file
- * @returns {Promise<boolean>} - Returns true if deleted, false if file doesn't exist
+ * Returns full file paths for all files in a directory.
+ * Returns an empty array if the directory does not exist or cannot be read.
  */
-export async function deleteFile(filePath) {
-    return new Promise((resolve, reject) => {
-        if (!filePath) return resolve(false);
-
-        fs.access(filePath, fs.constants.F_OK, (err) => {
-            if (err) {
-                // File does not exist
-                return resolve(false);
-            }
-
-            fs.unlink(filePath, (err) => {
-                if (err) return reject(err);
-                resolve(true);
-            });
-        });
-    });
+export async function getAllFiles(dir) {
+    try {
+        const files = await fsp.readdir(dir);
+        return files.map(file => path.join(dir, file));
+    } catch (err) {
+        console.error("Error reading folder:", err.message);
+        return [];
+    }
 }
 
 /**
- * Delete multiple files safely
- * @param {string[]} files - Array of file paths
+ * Deletes an array of file paths.
+ * Logs a warning for any file that fails to delete.
  */
-export async function deleteFiles(files) {
-    for (const filePath of files) {
-        try {
-            const deleted = await deleteFile(filePath);
-            if (deleted) console.log(`Deleted: ${filePath}`);
-        } catch (err) {
-            console.error(`Failed to delete ${filePath}:`, err.message);
-        }
+export async function deleteFiles(filePaths) {
+    for (const filePath of filePaths) {
+        await fsp.unlink(filePath).catch(err =>
+            console.warn("Failed to delete file:", filePath, err.message)
+        );
     }
 }

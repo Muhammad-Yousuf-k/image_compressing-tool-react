@@ -2,10 +2,13 @@ import path from "path";
 import { Worker } from "worker_threads";
 import { fileURLToPath } from "url";
 import fsp from "fs/promises";
-import { deleteFiles } from "../utils/junkDelete.js";
+import { deleteFiles, getAllFiles } from "../utils/junkDelete.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const PROCESSED_DIR = path.resolve("processed");
+const UPLOAD_DIR = path.resolve("uploads");
 
 
 export const compressController = (req, res) => {
@@ -32,8 +35,26 @@ export const compressController = (req, res) => {
             { workerData: filesData }
         );
 
-        worker.on("message", processedFiles => {
-            res.json({ processedFiles });
+        worker.on("message", async (workerResult) => {
+            // Handle error message sent from worker
+            if (workerResult?.error) {
+                if (!res.headersSent) {
+                    res.status(500).json({ error: "Image processing failed" });
+                }
+                return;
+            }
+
+            // Respond first, then clean up uploads
+            if (!res.headersSent) {
+                res.json({ processedFiles: workerResult });
+            }
+
+            // Clean up original uploaded files after responding
+            for (const file of req.files) {
+                await fsp.unlink(file.path).catch(err =>
+                    console.error("Upload cleanup failed:", file.path, err.message)
+                );
+            }
         });
 
         worker.on("error", err => {
@@ -55,15 +76,22 @@ export const compressController = (req, res) => {
     }
 };
 
-export const downloadController = async (req, res) => {
-    const fileName = req.query.file;
 
-    if (!fileName) {
+export const downloadController = async (req, res) => {
+    const rawFileName = req.query.file;
+
+    if (!rawFileName) {
         return res.status(400).send("Missing file parameter");
     }
 
-    const processedDir = path.resolve("processed");
-    const resolvedPath = path.join(processedDir, fileName);
+    // Prevent path traversal: strip any directory components
+    const safeFileName = path.basename(rawFileName);
+    const resolvedPath = path.resolve(PROCESSED_DIR, safeFileName);
+
+    // Double-check resolved path stays inside processedDir
+    if (!resolvedPath.startsWith(PROCESSED_DIR + path.sep)) {
+        return res.status(400).send("Invalid file path");
+    }
 
     try {
         await fsp.access(resolvedPath);
@@ -71,36 +99,29 @@ export const downloadController = async (req, res) => {
         return res.status(404).send("File not found");
     }
 
-    res.download(resolvedPath, fileName, err => {
+    res.download(resolvedPath, safeFileName, err => {
         if (err) {
             console.error("Download error:", err);
-            return res.status(500).send("Error downloading file");
+            if (!res.headersSent) {
+                res.status(500).send("Error downloading file");
+            }
         }
     });
 };
 
+
 export const deleteController = async (req, res) => {
-
-    const processedDir = path.resolve("./processed"); // Processed files folder
-    const uploadDir = path.resolve("./uploads"); // Uploads folder
-
-    // Helper to read all files in a directory
-    async function getAllFiles(dir) {
-        try {
-            const files = await fsp.readdir(dir); // List files
-            const filePaths = files.map(file => path.join(dir, file)); // Full paths
-            return filePaths;
-        } catch (err) {
-            console.error("Error reading folder:", err.message);
-            return [];
-        }
+    // Verify admin secret to prevent unauthorized wipes
+    const adminSecret = req.headers["x-admin-secret"];
+    if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Forbidden" });
     }
 
-    const processedFiles = await getAllFiles(processedDir);
+    const processedFiles = await getAllFiles(PROCESSED_DIR);
     await deleteFiles(processedFiles);
 
-    const uploadFiles = await getAllFiles(uploadDir);
+    const uploadFiles = await getAllFiles(UPLOAD_DIR);
     await deleteFiles(uploadFiles);
 
-    res.json("Delete All Junk"); // Response
-}
+    res.json({ message: "All junk deleted successfully" });
+};
